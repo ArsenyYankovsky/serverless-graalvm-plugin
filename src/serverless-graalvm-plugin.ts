@@ -14,7 +14,7 @@ export default class ServerlessPlugin {
     }
   }
 
-  public async processLambdas() {
+  protected processLambdas = async () => {
     this.prepareWorkingDirectory()
 
     const lambdaNames = this.serverless.service.getAllFunctions()
@@ -31,7 +31,7 @@ export default class ServerlessPlugin {
     })
   }
 
-  public prepareWorkingDirectory () {
+  protected prepareWorkingDirectory = () => {
     if (!fs.existsSync('.graalvm')) {
       fs.mkdirSync('.graalvm')
     }
@@ -48,7 +48,7 @@ export default class ServerlessPlugin {
     }
   }
 
-  public processLambda(lambdaName: string, dockerName: string) {
+  protected processLambda = (lambdaName: string, dockerName: string) => {
     this.serverless.cli.log(`Compiling ${lambdaName} to native code`)
 
     const packagePath = this.serverless.service.getFunction(lambdaName).package.artifact!
@@ -79,7 +79,7 @@ export default class ServerlessPlugin {
     }
   }
 
-  public getBootstrapScript () {
+  protected getBootstrapScript = () => {
     return `\
 #!/bin/sh
 set -euo pipefail
