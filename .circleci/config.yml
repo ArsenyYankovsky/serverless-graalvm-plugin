@@ -10,4 +10,7 @@ jobs:
           command: yarn
       - run:
           name: release
+          command: yarn build
+      - run:
+          name: release
           command: yarn semantic-release || true
