@@ -18,17 +18,33 @@ export default class ServerlessPlugin {
     this.prepareWorkingDirectory()
 
     const lambdaNames = this.serverless.service.getAllFunctions()
+
+    const shouldUseDocker = this.shouldUseDocker()
+
     const dockerName = `${this.serverless.service.getServiceName()}-graal`
 
-    try {
-      execSync(`docker rm ${dockerName} --force`, { stdio: 'ignore' })
-    } catch (e) {
-      // ignore all errors
+    if (shouldUseDocker) {
+      try {
+        execSync(`docker rm ${dockerName} --force`, { stdio: 'ignore' })
+      } catch (e) {
+        // ignore all errors
+      }
     }
 
     lambdaNames.forEach((lambdaName) => {
-      this.processLambda(lambdaName, dockerName)
+      this.processLambda(lambdaName, dockerName, shouldUseDocker)
     })
+  }
+
+  protected shouldUseDocker = () => {
+    try {
+      execSync('native-image --help')
+      execSync('zip')
+      return false
+    } catch (e) {
+      console.log('native-image or zip command not found locally, falling back to use Docker')
+      return true
+    }
   }
 
   protected prepareWorkingDirectory = () => {
@@ -48,7 +64,7 @@ export default class ServerlessPlugin {
     }
   }
 
-  protected processLambda = (lambdaName: string, dockerName: string) => {
+  protected processLambda = (lambdaName: string, dockerName: string, shouldUseDocker: boolean) => {
     this.serverless.cli.log(`Compiling ${lambdaName} to native code`)
 
     const packagePath = this.serverless.service.getFunction(lambdaName).package.artifact!
@@ -57,20 +73,29 @@ export default class ServerlessPlugin {
 
     fs.copyFileSync(packagePath, clonedPackagePath)
 
-    execSync(`docker run --rm --name ${dockerName} -v ${process.cwd()}/.graalvm:/.graalvm \
-        ayankovsky/serverless-graalvm-plugin-build-image:0.0.1 \
-         /bin/bash -c " \
-         native-image --enable-url-protocols=http \
+    const workingDirectory = shouldUseDocker ? '/.graalvm' : '.graalvm'
+
+    const buildCommand = `
+        cd ${workingDirectory} && \
+        native-image --enable-url-protocols=http \
          -Djava.net.preferIPv4Stack=true \
-         -H:ReflectionConfigurationFiles=/.graalvm/reflect.json \
+         -H:ReflectionConfigurationFiles=reflect.json \
          -J-Xss10m \
          -J-Xms1g \
          -J-Xmx14g \
-         --no-server -jar ${clonedPackagePath} && \
+         --no-server -jar ${lambdaName}.jar && \
          mv -f ${lambdaName} server && \
-         chmod 777 /.graalvm/bootstrap && \
-         zip -D -j ${lambdaName}.zip server /.graalvm/bootstrap && \
-         cp ${lambdaName}.zip /.graalvm"`)
+         chmod 777 bootstrap && \
+         zip -D -j ${lambdaName}.zip server bootstrap \
+    `
+
+    if (shouldUseDocker) {
+      execSync(`docker run --rm --name ${dockerName} -v ${process.cwd()}/.graalvm:/.graalvm \
+        ayankovsky/serverless-graalvm-plugin-build-image:0.0.1 \
+         /bin/bash -c "${buildCommand}"`)
+    } else {
+      execSync(buildCommand)
+    }
 
     this.serverless.service.getFunction(lambdaName).package = {
       artifact: `.graalvm/${lambdaName}.zip`,

@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  release:
     docker:
       - image: 'circleci/node:latest'
     steps:
@@ -14,3 +14,73 @@ jobs:
       - run:
           name: release
           command: yarn semantic-release || true
+
+  checks:
+    docker:
+      - image: "node:latest"
+    steps:
+      - checkout
+      - run:
+          name: yarn
+          command: yarn
+      - run:
+          name: lint
+          command: yarn lint
+      - run:
+          name: tsc
+          command: yarn tsc
+
+  functional-test:
+    docker:
+      - image: "ayankovsky/serverless-node-java:0.0.8"
+    steps:
+      - checkout
+      - run:
+          name: yarn
+          command: yarn
+      - run:
+          name: build
+          command: yarn build
+      - run:
+          name: create link
+          command: cd dist && yarn link
+      - run:
+          name: checkout example project
+          command: git clone git@github.com:ArsenyYankovsky/serverless-graalvm-plugin-test-project.git
+      - run:
+          name: link built plugin
+          command: cd serverless-graalvm-plugin-test-project && yarn link serverless-graalvm-plugin && yarn
+      - run:
+          name: run tests
+          command: cd serverless-graalvm-plugin-test-project && ./gradlew build -x test && sls deploy && ./gradlew test
+
+workflows:
+  version: 2
+  release:
+    jobs:
+      - checks:
+          filters:
+            branches:
+              only:
+                - master
+      - functional-test:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - checks
+      - release:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - functional-test
+
+  check-commit:
+    jobs:
+      - checks
+      - functional-test:
+          requires:
+            - checks
