@@ -9,7 +9,7 @@ jobs:
           name: install
           command: yarn
       - run:
-          name: release
+          name: build
           command: yarn build
       - run:
           name: release

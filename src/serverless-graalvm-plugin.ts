@@ -2,7 +2,7 @@ import { execSync } from 'child_process'
 import * as fs from 'fs'
 import Serverless from 'serverless'
 
-export class ServerlessPlugin {
+export default class ServerlessPlugin {
   private serverless: Serverless
   private hooks: { 'before:package:createDeploymentArtifacts': () => Promise<void> }
 
