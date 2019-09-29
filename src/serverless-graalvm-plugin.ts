@@ -1,5 +1,7 @@
 import { execSync } from 'child_process'
 import * as fs from 'fs'
+// @ts-ignore
+import lignator from 'lignator'
 import Serverless from 'serverless'
 
 export default class ServerlessPlugin {
@@ -15,7 +17,7 @@ export default class ServerlessPlugin {
   }
 
   protected processLambdas = async () => {
-    this.prepareWorkingDirectory()
+    await this.prepareWorkingDirectory()
 
     const lambdaNames = this.serverless.service.getAllFunctions()
 
@@ -31,15 +33,17 @@ export default class ServerlessPlugin {
       }
     }
 
+    const resourceConfigExists = fs.existsSync('resource-config.json')
+
     lambdaNames.forEach((lambdaName) => {
-      this.processLambda(lambdaName, dockerName, shouldUseDocker)
+      this.processLambda(lambdaName, dockerName, shouldUseDocker, resourceConfigExists)
     })
   }
 
   protected shouldUseDocker = () => {
     try {
-      execSync('native-image --help')
-      execSync('zip')
+      execSync('native-image --help', { stdio: 'ignore' })
+      execSync('zip', { stdio: 'ignore' })
       return false
     } catch (e) {
       console.log('native-image or zip command not found locally, falling back to use Docker')
@@ -47,7 +51,9 @@ export default class ServerlessPlugin {
     }
   }
 
-  protected prepareWorkingDirectory = () => {
+  protected prepareWorkingDirectory = async () => {
+    lignator.remove('.graalvm')
+
     if (!fs.existsSync('.graalvm')) {
       fs.mkdirSync('.graalvm')
     }
@@ -59,12 +65,17 @@ export default class ServerlessPlugin {
     fs.copyFileSync('reflect.json', '.graalvm/reflect.json')
     fs.writeFileSync('.graalvm/bootstrap', this.getBootstrapScript())
 
-    if (!fs.existsSync('resource-config.json')) {
+    if (fs.existsSync('resource-config.json')) {
       fs.copyFileSync('resource-config.json', '.graalvm/resource-config.json')
     }
   }
 
-  protected processLambda = (lambdaName: string, dockerName: string, shouldUseDocker: boolean) => {
+  protected processLambda = (
+    lambdaName: string,
+    dockerName: string,
+    shouldUseDocker: boolean,
+    resourceConfigExists: boolean,
+  ) => {
     this.serverless.cli.log(`Compiling ${lambdaName} to native code`)
 
     const packagePath = this.serverless.service.getFunction(lambdaName).package.artifact!
@@ -75,10 +86,11 @@ export default class ServerlessPlugin {
 
     const workingDirectory = shouldUseDocker ? '/.graalvm' : '.graalvm'
 
-    const buildCommand = `
+    const buildCommand = `\
         cd ${workingDirectory} && \
         native-image --enable-url-protocols=http \
          -Djava.net.preferIPv4Stack=true \
+         ${resourceConfigExists ? '-H:ResourceConfigurationFiles=resource-config.json' : ''} \
          -H:ReflectionConfigurationFiles=reflect.json \
          -J-Xss10m \
          -J-Xms1g \
