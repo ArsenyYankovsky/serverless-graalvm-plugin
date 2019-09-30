@@ -89,6 +89,7 @@ export default class ServerlessPlugin {
     const buildCommand = `\
         cd ${workingDirectory} && \
         native-image --enable-url-protocols=http \
+        -H:EnableURLProtocols=https \
          -Djava.net.preferIPv4Stack=true \
          ${resourceConfigExists ? '-H:ResourceConfigurationFiles=resource-config.json' : ''} \
          -H:ReflectionConfigurationFiles=reflect.json \
@@ -103,7 +104,7 @@ export default class ServerlessPlugin {
 
     if (shouldUseDocker) {
       execSync(`docker run --rm --name ${dockerName} -v ${process.cwd()}/.graalvm:/.graalvm \
-        ayankovsky/serverless-graalvm-plugin-build-image:0.0.1 \
+        ayankovsky/serverless-graalvm-plugin-build-image:0.0.2 \
          /bin/bash -c "${buildCommand}"`)
     } else {
       execSync(buildCommand)
