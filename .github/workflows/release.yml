@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: ayankovsky/serverless-node-java:0.0.8
+    steps:
+      - uses: actions/checkout@v1
+      - name: install dependencies
+        run: yarn
+      - name: lint
+        run: yarn lint
+      - name: tsc
+        run: yarn tsc --noEmit
+      - name: build
+        run: yarn build
+
+      - name: create link
+        run: cd dist && yarn link
+      - name: checkout example project
+        run: git clone https://github.com/ArsenyYankovsky/serverless-graalvm-plugin-test-project.git
+      - name: link built plugin
+        run: cd serverless-graalvm-plugin-test-project && yarn link serverless-graalvm-plugin && yarn
+      - name: run tests
+        run: cd serverless-graalvm-plugin-test-project && ./gradlew build -x test && sls deploy && ./gradlew test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: build
+        run: yarn build
+      - name: release
+        run: yarn semantic-release || true
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
