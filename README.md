@@ -3,6 +3,8 @@
 ### Description
 Compiles jars into native packages with GraalVM Native Image reducing cold start and improving overall performance. It relies on locally installed native-image or falls back to using a docker image to do so.
 
+##### [Demo Project](https://github.com/ArsenyYankovsky/serverless-graalvm-plugin-test-project)
+
 ### How to use
 #### Prerequisites
 This plugins requires either `docker` to be installed or `native-image` and `zip`
