@@ -104,7 +104,7 @@ export default class ServerlessPlugin {
 
     if (shouldUseDocker) {
       execSync(`docker run --rm --name ${dockerName} -v ${process.cwd()}/.graalvm:/.graalvm \
-        ayankovsky/serverless-graalvm-plugin-build-image:0.0.2 \
+        ayankovsky/serverless-graalvm-plugin-build-image:0.0.3 \
          /bin/bash -c "${buildCommand}"`)
     } else {
       execSync(buildCommand)
