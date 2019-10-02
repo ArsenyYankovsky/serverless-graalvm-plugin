@@ -66,3 +66,10 @@ Sometimes the docker container might crash with out of memory error. Try to incr
 
 With some CI providers like CircleCI it's hard to make docker commands work inside the build environment. 
 You might want to install `native-image` or use a docker image based on [oracle/graalvm-ce](https://hub.docker.com/r/oracle/graalvm-ce/) instead.
+
+#### Https Support
+
+By default, there are some errors if you're trying to send https requests from compiled native image. This is fixed inside a docker container that is used by this docker plugin. 
+
+If you're not running a docker container the workaround is to modify your local `java.security` 
+file that is located in the `$JAVA_HOME/jre/lib/security/` directory. You need to remove the SunEC from the providers section.
